@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      quote_requests: {
+        Row: {
+          area: number
+          bathrooms: number
+          city: string
+          consent: boolean
+          created_at: string
+          extras: string[]
+          frequency: string
+          id: string
+          phone: string
+          price_max: number
+          price_min: number
+          service: string
+          timing: string
+        }
+        Insert: {
+          area: number
+          bathrooms: number
+          city: string
+          consent: boolean
+          created_at?: string
+          extras?: string[]
+          frequency?: string
+          id?: string
+          phone: string
+          price_max: number
+          price_min: number
+          service: string
+          timing: string
+        }
+        Update: {
+          area?: number
+          bathrooms?: number
+          city?: string
+          consent?: boolean
+          created_at?: string
+          extras?: string[]
+          frequency?: string
+          id?: string
+          phone?: string
+          price_max?: number
+          price_min?: number
+          service?: string
+          timing?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
