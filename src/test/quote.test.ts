@@ -18,3 +18,12 @@ describe("estimate", () => {
     expect(estimate("renovation", 50, 1, [], "Bydgoszcz", "weekly")).toMatchObject({ min: 360, max: 490 });
   });
 });
+
+describe("custom frequency", () => {
+  it("custom 3 visits: -10% and 3 visits/month", () => {
+    expect(estimate("renovation", 50, 1, [], "Bydgoszcz", "custom", 3)).toMatchObject({ min: 380, max: 520, monthMin: 1140, monthMax: 1560 });
+  });
+  it("custom 1 visit: no discount", () => {
+    expect(estimate("renovation", 50, 1, [], "Bydgoszcz", "custom", 1)).toMatchObject({ min: 430, max: 580, monthMin: 430 });
+  });
+});

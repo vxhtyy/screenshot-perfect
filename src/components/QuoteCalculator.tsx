@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { companies } from "@/data/companies";
-import { EXTRAS, QUOTE_SERVICES, estimate, type QuoteService } from "@/lib/quote";
+import { EXTRAS, FREQUENCIES, QUOTE_SERVICES, estimate, type Frequency, type QuoteService } from "@/lib/quote";
 import { submitQuoteRequest } from "@/lib/quote.functions";
 
 const TIMINGS = [
@@ -20,6 +20,8 @@ export function QuoteCalculator() {
   const [area, setArea] = useState(60);
   const [bathrooms, setBathrooms] = useState(1);
   const [extras, setExtras] = useState<string[]>([]);
+  const [frequency, setFrequency] = useState<Frequency>("once");
+  const [customVisits, setCustomVisits] = useState(3);
   const [analyzing, setAnalyzing] = useState(false);
   const [phone, setPhone] = useState("");
   const [timing, setTiming] = useState<(typeof TIMINGS)[number]["id"]>("now");
@@ -29,13 +31,14 @@ export function QuoteCalculator() {
   const [done, setDone] = useState(false);
 
   const svc = QUOTE_SERVICES.find((s) => s.id === service)!;
-  const q = estimate(service, area, bathrooms, extras, city);
+  const q = estimate(service, area, bathrooms, extras, city, frequency, customVisits);
+  const freq = FREQUENCIES.find((f) => f.id === frequency)!;
   const local = companies.filter((c) => c.city === city);
   const matches = local.filter((c) => c.services.some((s) => svc.catalog.includes(s)));
 
   useEffect(() => {
     if (!analyzing) return;
-    const t = setTimeout(() => { setAnalyzing(false); setStep(3); }, 1500);
+    const t = setTimeout(() => { setAnalyzing(false); setStep(4); }, 1500);
     return () => clearTimeout(t);
   }, [analyzing]);
 
@@ -48,7 +51,7 @@ export function QuoteCalculator() {
     if (!consent) return setError("Zaznacz zgodę na przekazanie danych.");
     setSending(true);
     try {
-      const r = await submit({ data: { service, city, area, bathrooms, extras, phone: digits, timing, consent: true } });
+      const r = await submit({ data: { service, city, area, bathrooms, extras, phone: digits, timing, consent: true, frequency, customVisits: frequency === "custom" ? customVisits : undefined } });
       if (r.ok) setDone(true); else setError(r.error);
     } catch { setError("Nie udało się wysłać zapytania. Spróbuj ponownie."); }
     finally { setSending(false); }
@@ -61,11 +64,11 @@ export function QuoteCalculator() {
       {!done && (
         <div className="mb-6">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-muted-foreground">Krok {step} z 4</span>
+            <span className="font-medium text-muted-foreground">Krok {step} z 5</span>
             {step > 1 && !analyzing && <button type="button" onClick={() => setStep(step - 1)} className="text-primary hover:underline">← Wstecz</button>}
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${step * 25}%` }} />
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${step * 20}%` }} />
           </div>
         </div>
       )}
@@ -131,7 +134,7 @@ export function QuoteCalculator() {
               ))}
             </div>
           </div>
-          <button type="button" disabled={area < 10} onClick={() => setAnalyzing(true)} className={bigBtn}>Oblicz wstępną wycenę ➔</button>
+          <button type="button" disabled={area < 10} onClick={() => setStep(3)} className={bigBtn}>Dalej ➔</button>
         </div>
       )}
 
@@ -146,18 +149,54 @@ export function QuoteCalculator() {
         </div>
       )}
 
-      {step === 3 && (
-        <div className="text-center">
-          <p className="text-muted-foreground">Szacowany koszt</p>
-          <p className="mt-1 font-display text-4xl font-bold text-primary md:text-5xl">{q.min} zł – {q.max} zł <span className="text-xl">brutto</span></p>
-          <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
-            Cena bazuje na stawkach firm sprzątających w Twojej okolicy. Wprowadź numer, aby wysłać zapytanie i otrzymać dokładne oferty od wykonawców z miasta {city}.
-          </p>
-          <button type="button" onClick={() => setStep(4)} className={`${bigBtn} mt-6`}>Chcę dokładne oferty ➔</button>
+      {step === 3 && !analyzing && (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold">Jak często sprzątamy?</h2>
+          <div className="grid gap-3">
+            {FREQUENCIES.map((f) => (
+              <button key={f.id} type="button" onClick={() => setFrequency(f.id)}
+                className={`relative flex items-start gap-3 rounded-2xl border-2 p-4 text-left transition hover:border-primary ${frequency === f.id ? "border-primary bg-secondary" : "border-border bg-muted"}`}>
+                <span className="text-2xl" aria-hidden>{f.icon}</span>
+                <span className="flex-1">
+                  <span className="flex flex-wrap items-center gap-2 font-semibold">
+                    {f.label}
+                    {f.discount > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">-{Math.round(f.discount * 100)}%{f.id === "custom" ? " od 2 wizyt" : ""}</span>}
+                    {f.badge && <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{f.badge}</span>}
+                  </span>
+                  <span className="text-sm text-muted-foreground">{f.hint}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {frequency === "custom" && (
+            <div className="rounded-2xl bg-muted p-4">
+              <label htmlFor="visits" className="font-semibold">Ile wizyt w miesiącu?</label>
+              <div className="mt-2 flex items-center gap-3">
+                <button type="button" onClick={() => setCustomVisits(Math.max(1, customVisits - 1))} className="h-11 w-11 rounded-xl bg-card text-xl font-bold">−</button>
+                <input id="visits" type="number" min={1} max={30} value={customVisits}
+                  onChange={(e) => setCustomVisits(Math.min(30, Math.max(1, +e.target.value || 1)))}
+                  className="w-20 rounded-xl bg-card px-3 py-2 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-ring" />
+                <button type="button" onClick={() => setCustomVisits(Math.min(30, customVisits + 1))} className="h-11 w-11 rounded-xl bg-card text-xl font-bold">+</button>
+              </div>
+            </div>
+          )}
+          <button type="button" onClick={() => setAnalyzing(true)} className={bigBtn}>Oblicz wstępną wycenę ➔</button>
         </div>
       )}
 
-      {step === 4 && !done && (
+      {step === 4 && (
+        <div className="text-center">
+          <p className="text-muted-foreground">Szacowany koszt {frequency === "once" ? "" : "jednej wizyty"}</p>
+          <p className="mt-1 font-display text-4xl font-bold text-primary md:text-5xl">{q.min} zł – {q.max} zł <span className="text-xl">brutto</span></p>
+          {q.monthMax > 0 && <p className="mt-2 font-semibold">ok. {q.monthMin} – {q.monthMax} zł miesięcznie · {freq.label.toLowerCase()}</p>}
+          <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
+            Cena bazuje na stawkach firm sprzątających w Twojej okolicy. Wprowadź numer, aby wysłać zapytanie i otrzymać dokładne oferty od wykonawców z miasta {city}.
+          </p>
+          <button type="button" onClick={() => setStep(5)} className={`${bigBtn} mt-6`}>Chcę dokładne oferty ➔</button>
+        </div>
+      )}
+
+      {step === 5 && !done && (
         <div className="space-y-5">
           <h2 className="text-2xl font-bold">Gdzie wysłać oferty?</h2>
           <div>
