@@ -21,20 +21,29 @@ export const CITY_FACTOR: Record<string, number> = {
 export const BATHROOM_PRICE = 100; // każda dodatkowa łazienka
 export const MIN_PRICE = 150;
 
-export type Frequency = "once" | "weekly" | "biweekly" | "monthly";
+export type Frequency = "once" | "weekly" | "biweekly" | "monthly" | "custom";
 
 export const FREQUENCIES: { id: Frequency; icon: string; label: string; hint: string; badge?: string; discount: number; visitsPerMonth: number }[] = [
   { id: "once", icon: "⚡", label: "Jednorazowo", hint: "Idealne po remoncie, przed wyprowadzką lub na wiosenne porządki.", discount: 0, visitsPerMonth: 0 },
   { id: "weekly", icon: "🔄", label: "Co tydzień", hint: "Dom zawsze lśni czystością. Stała, zaufana ekipa.", badge: "Najwyższy standard", discount: 0.15, visitsPerMonth: 4 },
   { id: "biweekly", icon: "🗓️", label: "Co 2 tygodnie", hint: "Idealny złoty środek dla domów i mieszkań.", badge: "Najpopularniejszy", discount: 0.1, visitsPerMonth: 2 },
   { id: "monthly", icon: "🏢", label: "Abonament miesięczny / B2B", hint: "Dla biur, gabinetów i lokali usługowych (z fakturą VAT).", discount: 0.15, visitsPerMonth: 4 },
+  { id: "custom", icon: "✏️", label: "Własny harmonogram", hint: "Sam ustal, ile wizyt w miesiącu potrzebujesz.", discount: 0.1, visitsPerMonth: 0 },
 ];
 
-/** Cena za wizytę (z rabatem) oraz, dla stałej współpracy, miesięcznie. */
-export function estimate(service: QuoteService, area: number, bathrooms: number, extraIds: string[], city: string, frequency: Frequency = "once") {
+/** Własny harmonogram: rabat 10% od 2 wizyt w miesiącu, przy 1 wizycie brak rabatu. */
+export function frequencyTerms(frequency: Frequency, customVisits = 1) {
   const f = FREQUENCIES.find((x) => x.id === frequency)!;
-  const v = visitEstimate(service, area, bathrooms, extraIds, city, 1 - f.discount);
-  return { ...v, monthMin: v.min * f.visitsPerMonth, monthMax: v.max * f.visitsPerMonth };
+  if (frequency !== "custom") return { discount: f.discount, visitsPerMonth: f.visitsPerMonth };
+  const v = Math.min(30, Math.max(1, Math.round(customVisits)));
+  return { discount: v >= 2 ? f.discount : 0, visitsPerMonth: v };
+}
+
+/** Cena za wizytę (z rabatem) oraz, dla stałej współpracy, miesięcznie. */
+export function estimate(service: QuoteService, area: number, bathrooms: number, extraIds: string[], city: string, frequency: Frequency = "once", customVisits = 1) {
+  const t = frequencyTerms(frequency, customVisits);
+  const v = visitEstimate(service, area, bathrooms, extraIds, city, 1 - t.discount);
+  return { ...v, monthMin: v.min * t.visitsPerMonth, monthMax: v.max * t.visitsPerMonth };
 }
 
 function visitEstimate(service: QuoteService, area: number, bathrooms: number, extraIds: string[], city: string, mult: number) {
