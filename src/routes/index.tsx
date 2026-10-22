@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { companies, SERVICES } from "@/data/companies";
 import { QuoteCalculator } from "@/components/QuoteCalculator";
+import { AuthNav } from "@/components/AuthNav";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,7 +40,7 @@ function Index() {
       <header className="bg-hero">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <span className="font-display text-2xl font-bold text-primary">CzystaLista</span>
-          <span className="text-sm text-muted-foreground">{companies.length} firm w katalogu</span>
+          <AuthNav />
         </nav>
         <div className="mx-auto max-w-6xl px-6 pb-16 pt-10">
           <h1 className="max-w-2xl text-5xl font-bold leading-tight md:text-6xl">
