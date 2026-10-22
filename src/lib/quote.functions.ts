@@ -11,7 +11,8 @@ const schema = z.object({
   phone: z.string().regex(/^\d{9}$/, "Podaj 9-cyfrowy numer"),
   timing: z.enum(["now", "next_week", "planning"]),
   consent: z.literal(true),
-  frequency: z.enum(["once", "weekly", "biweekly", "monthly"]),
+  frequency: z.enum(["once", "weekly", "biweekly", "monthly", "custom"]),
+  customVisits: z.number().int().min(1).max(30).optional(),
 });
 
 export const submitQuoteRequest = createServerFn({ method: "POST" })
@@ -24,9 +25,13 @@ export const submitQuoteRequest = createServerFn({ method: "POST" })
       .eq("phone", data.phone).gte("created_at", since);
     if ((count ?? 0) >= 2) return { ok: false as const, error: "Zapytanie z tego numeru zostało już wysłane. Spróbuj później." };
 
-    const p = estimate(data.service, data.area, data.bathrooms, data.extras, data.city, data.frequency);
+    const { customVisits, ...rest } = data;
+    const visits = customVisits ?? 1;
+    const p = estimate(data.service, data.area, data.bathrooms, data.extras, data.city, data.frequency, visits);
     const { error } = await supabaseAdmin.from("quote_requests").insert({
-      ...data, price_min: p.min, price_max: p.max,
+      ...rest,
+      frequency: data.frequency === "custom" ? `custom_${visits}_per_month` : data.frequency,
+      price_min: p.min, price_max: p.max,
     });
     if (error) return { ok: false as const, error: "Nie udało się wysłać zapytania. Spróbuj ponownie." };
     return { ok: true as const };
