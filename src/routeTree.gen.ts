@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LogowanieRouteImport } from './routes/logowanie'
+import { Route as PanelRouteImport } from './routes/panel'
 import { Route as RejestracjaRouteImport } from './routes/rejestracja'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as FirmaSlugRouteImport } from './routes/firma.$slug'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const LogowanieRoute = LogowanieRouteImport.update({
   id: '/logowanie',
   path: '/logowanie',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PanelRoute = PanelRouteImport.update({
+  id: '/panel',
+  path: '/panel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RejestracjaRoute = RejestracjaRouteImport.update({
@@ -44,6 +50,7 @@ const FirmaSlugRoute = FirmaSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/logowanie': typeof LogowanieRoute
+  '/panel': typeof PanelRoute
   '/rejestracja': typeof RejestracjaRoute
   '/reset-password': typeof ResetPasswordRoute
   '/firma/$slug': typeof FirmaSlugRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/logowanie': typeof LogowanieRoute
+  '/panel': typeof PanelRoute
   '/rejestracja': typeof RejestracjaRoute
   '/reset-password': typeof ResetPasswordRoute
   '/firma/$slug': typeof FirmaSlugRoute
@@ -59,6 +67,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/logowanie': typeof LogowanieRoute
+  '/panel': typeof PanelRoute
   '/rejestracja': typeof RejestracjaRoute
   '/reset-password': typeof ResetPasswordRoute
   '/firma/$slug': typeof FirmaSlugRoute
@@ -66,13 +75,25 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/logowanie' | '/rejestracja' | '/reset-password' | '/firma/$slug'
+    | '/'
+    | '/logowanie'
+    | '/panel'
+    | '/rejestracja'
+    | '/reset-password'
+    | '/firma/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/logowanie' | '/rejestracja' | '/reset-password' | '/firma/$slug'
+  to:
+    | '/'
+    | '/logowanie'
+    | '/panel'
+    | '/rejestracja'
+    | '/reset-password'
+    | '/firma/$slug'
   id:
     | '__root__'
     | '/'
     | '/logowanie'
+    | '/panel'
     | '/rejestracja'
     | '/reset-password'
     | '/firma/$slug'
@@ -81,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LogowanieRoute: typeof LogowanieRoute
+  PanelRoute: typeof PanelRoute
   RejestracjaRoute: typeof RejestracjaRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   FirmaSlugRoute: typeof FirmaSlugRoute
@@ -100,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/logowanie'
       fullPath: '/logowanie'
       preLoaderRoute: typeof LogowanieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/panel': {
+      id: '/panel'
+      path: '/panel'
+      fullPath: '/panel'
+      preLoaderRoute: typeof PanelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rejestracja': {
@@ -129,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LogowanieRoute: LogowanieRoute,
+  PanelRoute: PanelRoute,
   RejestracjaRoute: RejestracjaRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   FirmaSlugRoute: FirmaSlugRoute,

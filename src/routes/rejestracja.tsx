@@ -21,6 +21,7 @@ function Register() {
   const [type, setType] = useState<"client" | "company">("client");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,13 +33,14 @@ function Register() {
     setError("");
     if (password.length < 8) return setError("Hasło musi mieć co najmniej 8 znaków.");
     if (!/^[+\d\s-]{9,}$/.test(phone)) return setError("Podaj poprawny numer telefonu.");
+    if (type === "company" && !city) return setError("Wybierz miasto, w którym działa Twoja firma.");
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { full_name: fullName.trim(), phone: phone.trim(), account_type: type },
+        data: { full_name: fullName.trim(), phone: phone.trim(), account_type: type, city: city || undefined },
       },
     });
     setLoading(false);
@@ -70,6 +72,16 @@ function Register() {
       <form onSubmit={submit} className="space-y-3">
         <input required placeholder={type === "company" ? "Imię i nazwisko osoby kontaktowej" : "Imię i nazwisko"} value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputCls} />
         <input type="tel" required placeholder="Telefon" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
+        {type === "company" && (
+          <select required value={city} onChange={(e) => setCity(e.target.value)} className={inputCls}>
+            <option value="">Wybierz miasto działania</option>
+            <option>Warszawa</option>
+            <option>Kraków</option>
+            <option>Wrocław</option>
+            <option>Gdańsk</option>
+            <option>Poznań</option>
+          </select>
+        )}
         <input type="email" required placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
         <input type="password" required placeholder="Hasło (min. 8 znaków)" value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
         {error && <p className="text-sm text-destructive">{error}</p>}

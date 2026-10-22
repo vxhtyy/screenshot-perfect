@@ -17,6 +17,7 @@ export type Database = {
       profiles: {
         Row: {
           account_type: string
+          city: string | null
           created_at: string
           full_name: string | null
           id: string
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           account_type?: string
+          city?: string | null
           created_at?: string
           full_name?: string | null
           id: string
@@ -33,6 +35,7 @@ export type Database = {
         }
         Update: {
           account_type?: string
+          city?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
@@ -55,6 +58,7 @@ export type Database = {
           price_max: number
           price_min: number
           service: string
+          status: string
           timing: string
         }
         Insert: {
@@ -70,6 +74,7 @@ export type Database = {
           price_max: number
           price_min: number
           service: string
+          status?: string
           timing: string
         }
         Update: {
@@ -85,6 +90,7 @@ export type Database = {
           price_max?: number
           price_min?: number
           service?: string
+          status?: string
           timing?: string
         }
         Relationships: []

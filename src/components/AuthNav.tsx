@@ -4,17 +4,29 @@ import { supabase } from "@/integrations/supabase/client";
 
 export function AuthNav() {
   const [email, setEmail] = useState<string | null>(null);
+  const [accountType, setAccountType] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => setEmail(session?.user.email ?? null));
+    supabase.auth.getUser().then(({ data }) => {
+      setEmail(data.user?.email ?? null);
+      setAccountType((data.user?.user_metadata as { account_type?: string } | null)?.account_type ?? null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => {
+      setEmail(session?.user.email ?? null);
+      setAccountType((session?.user.user_metadata as { account_type?: string } | null)?.account_type ?? null);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
   if (email) {
     return (
       <div className="flex items-center gap-3 text-sm">
+        {accountType === "company" && (
+          <Link to="/panel" className="rounded-xl bg-primary px-4 py-2 font-medium text-primary-foreground hover:opacity-90">
+            Panel firmy
+          </Link>
+        )}
         <span className="hidden text-muted-foreground sm:inline">{email}</span>
         <button
           onClick={async () => {
