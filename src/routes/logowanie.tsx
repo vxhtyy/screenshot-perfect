@@ -5,7 +5,7 @@ import { AuthLayout, Divider, GoogleButton, btnCls, inputCls } from "@/component
 
 export const Route = createFileRoute("/logowanie")({
   validateSearch: (search: Record<string, unknown>) => ({
-    info: typeof search.info === "string" ? search.info : undefined,
+    info: typeof search["info"] === "string" ? search["info"] : undefined,
   }),
   head: () => ({
     meta: [
