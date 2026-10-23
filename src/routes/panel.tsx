@@ -1,8 +1,10 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { companies } from "@/data/companies";
 import { QUOTE_SERVICES, FREQUENCIES, EXTRAS } from "@/lib/quote";
+import { getCompanyPanel, updateCompanyCity, updateQuoteStatus, type PanelRequest } from "@/lib/panel.functions";
 
 export const Route = createFileRoute("/panel")({
   head: () => ({
@@ -12,28 +14,8 @@ export const Route = createFileRoute("/panel")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  beforeLoad: async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw redirect({ to: "/logowanie" });
-  },
   component: Panel,
 });
-
-type QuoteRow = {
-  id: string;
-  created_at: string;
-  service: string;
-  city: string;
-  area: number;
-  bathrooms: number;
-  extras: string[];
-  price_min: number;
-  price_max: number;
-  phone: string;
-  timing: string;
-  frequency: string;
-  status: string;
-};
 
 const TIMING_LABELS: Record<string, string> = {
   now: "Na już / w tym tygodniu",
@@ -47,39 +29,41 @@ function fmtDate(iso: string) {
 }
 
 function Panel() {
-  const [profile, setProfile] = useState<{ full_name: string | null; phone: string | null; account_type: string; city: string | null } | null>(null);
-  const [requests, setRequests] = useState<QuoteRow[]>([]);
+  const navigate = useNavigate();
+  const fetchPanel = useServerFn(getCompanyPanel);
+  const saveCityFn = useServerFn(updateCompanyCity);
+  const setStatusFn = useServerFn(updateQuoteStatus);
+
+  const [profile, setProfile] = useState<{ full_name: string | null; phone: string | null; city: string | null } | null>(null);
+  const [requests, setRequests] = useState<PanelRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCity, setEditingCity] = useState(false);
   const [cityInput, setCityInput] = useState("");
   const [savingCity, setSavingCity] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterService, setFilterService] = useState<string>("all");
+  const [filterTiming, setFilterTiming] = useState<string>("all");
   const [error, setError] = useState("");
 
   async function loadAll() {
     setLoading(true);
     setError("");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: prof, error: profErr } = await supabase
-      .from("profiles").select("full_name, phone, account_type, city").eq("id", user.id).maybeSingle();
-    if (profErr) { setError("Nie udało się pobrać profilu."); setLoading(false); return; }
-    setProfile(prof);
-    setCityInput(prof?.city ?? "");
-
-    if (prof?.account_type !== "company") {
-      setLoading(false);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate({ to: "/logowanie", search: { info: "Zaloguj się na konto firmowe, aby zobaczyć panel." } });
       return;
     }
-
-    const { data: reqs, error: reqErr } = await supabase
-      .from("quote_requests")
-      .select("id, created_at, service, city, area, bathrooms, extras, price_min, price_max, phone, timing, frequency, status")
-      .eq("city", prof.city ?? "")
-      .order("created_at", { ascending: false });
-    if (reqErr) { setError("Nie udało się pobrać zapytań."); setLoading(false); return; }
-    setRequests(reqs ?? []);
+    try {
+      const data = await fetchPanel();
+      if (!data.ok) {
+        navigate({ to: "/logowanie", search: { info: "Panel jest dostępny tylko dla kont firmowych. Zaloguj się na konto firmy." } });
+        return;
+      }
+      setProfile({ full_name: data.fullName, phone: data.phone, city: data.city });
+      setCityInput(data.city ?? "");
+      setRequests(data.requests);
+    } catch {
+      setError("Nie udało się pobrać danych panelu.");
+    }
     setLoading(false);
   }
 
@@ -88,22 +72,39 @@ function Panel() {
   async function saveCity() {
     setSavingCity(true);
     setError("");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error: updErr } = await supabase
-      .from("profiles").update({ city: cityInput.trim() }).eq("id", user.id);
+    try {
+      await saveCityFn({ data: { city: cityInput.trim() } });
+      setEditingCity(false);
+      await loadAll();
+    } catch {
+      setError("Nie udało się zapisać miasta.");
+    }
     setSavingCity(false);
-    if (updErr) { setError("Nie udało się zapisać miasta."); return; }
-    setEditingCity(false);
-    loadAll();
   }
 
-  async function updateStatus(id: string, status: string) {
-    const { error: updErr } = await supabase
-      .from("quote_requests").update({ status }).eq("id", id);
-    if (updErr) return;
-    setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
+  async function updateStatus(id: string, status: "accepted" | "rejected") {
+    try {
+      await setStatusFn({ data: { id, status } });
+      setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
+    } catch {
+      setError("Nie udało się zmienić statusu.");
+    }
   }
+
+  const filtered = useMemo(
+    () =>
+      requests.filter(
+        (r) =>
+          (filterService === "all" || r.service === filterService) &&
+          (filterTiming === "all" || r.timing === filterTiming),
+      ),
+    [requests, filterService, filterTiming],
+  );
+
+  const newLast7Days = useMemo(() => {
+    const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return requests.filter((r) => r.status === "new" && new Date(r.created_at).getTime() >= since).length;
+  }, [requests]);
 
   if (loading) {
     return (
@@ -113,40 +114,14 @@ function Panel() {
     );
   }
 
-  if (profile?.account_type !== "company") {
-    return (
-      <div className="min-h-screen bg-hero">
-        <div className="mx-auto max-w-md px-4 pt-20 text-center">
-          <div className="rounded-2xl bg-card p-8 shadow-card">
-            <p className="text-5xl">🔒</p>
-            <h1 className="mt-4 text-2xl font-bold">Panel dostępny tylko dla firm</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              To konto klienta. Załóż konto firmowe, aby otrzymywać zapytenia ofertowe.
-            </p>
-            <Link to="/" className="mt-6 inline-block rounded-xl bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90">
-              Wróć na stronę główną
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const city = profile.city;
-  const filtered = filterStatus === "all" ? requests : requests.filter((r) => r.status === filterStatus);
-  const stats = {
-    total: requests.length,
-    new: requests.filter((r) => r.status === "new").length,
-    accepted: requests.filter((r) => r.status === "accepted").length,
-    rejected: requests.filter((r) => r.status === "rejected").length,
-  };
+  const city = profile?.city ?? null;
 
   return (
     <div className="min-h-screen bg-hero">
       <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <Link to="/" className="font-display text-2xl font-bold text-primary">CzystaLista</Link>
         <button
-          onClick={async () => { await supabase.auth.signOut(); window.location.assign("/"); }}
+          onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/", replace: true }); }}
           className="rounded-xl border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
         >
           Wyloguj
@@ -157,8 +132,8 @@ function Panel() {
         <div className="rounded-2xl bg-card p-6 shadow-card md:p-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold">{profile.full_name ?? "Panel firmy"}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">{profile.phone}</p>
+              <h1 className="text-2xl font-bold">{profile?.full_name ?? "Panel firmy"}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{profile?.phone}</p>
             </div>
             <div className="flex items-center gap-2">
               {!editingCity ? (
@@ -207,32 +182,43 @@ function Panel() {
 
         {error && <p className="mt-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[
-            { label: "Wszystkie", value: stats.total, color: "bg-muted text-foreground" },
-            { label: "Nowe", value: stats.new, color: "bg-primary/10 text-primary" },
-            { label: "Zaakceptowane", value: stats.accepted, color: "bg-green-100 text-green-700" },
-            { label: "Odrzucone", value: stats.rejected, color: "bg-red-100 text-red-700" },
-          ].map((s) => (
-            <div key={s.label} className={`rounded-2xl p-4 ${s.color}`}>
-              <p className="text-2xl font-bold">{s.value}</p>
-              <p className="text-xs font-medium">{s.label}</p>
-            </div>
-          ))}
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-muted p-4">
+            <p className="text-2xl font-bold">{requests.length}</p>
+            <p className="text-xs font-medium">Wszystkie zapytania</p>
+          </div>
+          <div className="rounded-2xl bg-primary/10 p-4 text-primary">
+            <p className="text-2xl font-bold">{newLast7Days}</p>
+            <p className="text-xs font-medium">Nowe w ostatnich 7 dniach</p>
+          </div>
+          <div className="rounded-2xl bg-muted p-4">
+            <p className="text-2xl font-bold">{filtered.length}</p>
+            <p className="text-xs font-medium">Po filtrach</p>
+          </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          {[
-            { id: "all", label: "Wszystkie" },
-            { id: "new", label: "Nowe" },
-            { id: "accepted", label: "Zaakceptowane" },
-            { id: "rejected", label: "Odrzucone" },
-          ].map((f) => (
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Usługa:</span>
+          {[{ id: "all", label: "Wszystkie" }, ...QUOTE_SERVICES.map((s) => ({ id: s.id, label: s.label }))].map((f) => (
             <button
               key={f.id}
-              onClick={() => setFilterStatus(f.id)}
+              onClick={() => setFilterService(f.id)}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                filterStatus === f.id ? "bg-primary text-primary-foreground" : "bg-muted hover:shadow-card"
+                filterService === f.id ? "bg-primary text-primary-foreground" : "bg-muted hover:shadow-card"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Termin:</span>
+          {[{ id: "all", label: "Wszystkie" }, ...Object.entries(TIMING_LABELS).map(([id, label]) => ({ id, label }))].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilterTiming(f.id)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                filterTiming === f.id ? "bg-primary text-primary-foreground" : "bg-muted hover:shadow-card"
               }`}
             >
               {f.label}
@@ -243,7 +229,9 @@ function Panel() {
         <div className="mt-4 space-y-3">
           {filtered.length === 0 && (
             <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-              {city ? "Brak zapytań w Twoim mieście. Nowe oferty pojawią się tutaj automatycznie." : "Ustaw najpierw miasto działania."}
+              {city
+                ? "Brak zapytań spełniających wybrane filtry. Nowe oferty pojawią się tutaj automatycznie."
+                : "Ustaw najpierw miasto działania, aby zobaczyć zapytania."}
             </div>
           )}
           {filtered.map((r) => {

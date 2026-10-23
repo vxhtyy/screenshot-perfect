@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthLayout, Divider, GoogleButton, btnCls, inputCls } from "@/components/AuthLayout";
 
 export const Route = createFileRoute("/logowanie")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    info: typeof search["info"] === "string" ? search["info"] : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Logowanie — CzystaLista" },
@@ -19,6 +22,7 @@ export const Route = createFileRoute("/logowanie")({
 
 function Login() {
   const navigate = useNavigate();
+  const { info: infoParam } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -44,6 +48,7 @@ function Login() {
 
   return (
     <AuthLayout title="Zaloguj się" subtitle="Witaj ponownie w CzystaLista.">
+      {infoParam && <p className="mb-4 rounded-xl bg-accent/20 px-4 py-3 text-sm">{infoParam}</p>}
       <GoogleButton onError={setError} />
       <Divider />
       <form onSubmit={submit} className="space-y-3">

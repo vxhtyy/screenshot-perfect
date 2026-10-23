@@ -42,7 +42,7 @@ export function AuthNav() {
   }
   return (
     <div className="flex items-center gap-2 text-sm">
-      <Link to="/logowanie" className="rounded-xl px-4 py-2 font-medium hover:bg-muted">Zaloguj się</Link>
+      <Link to="/logowanie" search={{ info: undefined }} className="rounded-xl px-4 py-2 font-medium hover:bg-muted">Zaloguj się</Link>
       <Link to="/rejestracja" className="rounded-xl bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary/90">Załóż konto</Link>
     </div>
   );

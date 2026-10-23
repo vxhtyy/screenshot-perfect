@@ -52,7 +52,7 @@ function Register() {
     return (
       <AuthLayout title="Sprawdź skrzynkę" subtitle={`Wysłaliśmy link aktywacyjny na ${email}.`}>
         <p className="text-sm">Kliknij link w wiadomości, aby potwierdzić konto, a potem się zaloguj.</p>
-        <Link to="/logowanie" className={`${btnCls} mt-6 block text-center`}>Przejdź do logowania</Link>
+        <Link to="/logowanie" search={{ info: undefined }} className={`${btnCls} mt-6 block text-center`}>Przejdź do logowania</Link>
       </AuthLayout>
     );
   }
@@ -88,7 +88,7 @@ function Register() {
         <button disabled={loading} className={btnCls}>{loading ? "Zakładanie konta…" : "Zarejestruj się"}</button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Masz już konto? <Link to="/logowanie" className="font-medium text-primary hover:underline">Zaloguj się</Link>
+        Masz już konto? <Link to="/logowanie" search={{ info: undefined }} className="font-medium text-primary hover:underline">Zaloguj się</Link>
       </p>
     </AuthLayout>
   );
