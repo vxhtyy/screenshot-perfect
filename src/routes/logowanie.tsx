@@ -48,6 +48,7 @@ function Login() {
 
   return (
     <AuthLayout title="Zaloguj się" subtitle="Witaj ponownie w CzystaLista.">
+      {infoParam && <p className="mb-4 rounded-xl bg-accent/20 px-4 py-3 text-sm">{infoParam}</p>}
       <GoogleButton onError={setError} />
       <Divider />
       <form onSubmit={submit} className="space-y-3">
