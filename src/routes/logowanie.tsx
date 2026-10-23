@@ -22,6 +22,7 @@ export const Route = createFileRoute("/logowanie")({
 
 function Login() {
   const navigate = useNavigate();
+  const { info: infoParam } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
