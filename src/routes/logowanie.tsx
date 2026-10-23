@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthLayout, Divider, GoogleButton, btnCls, inputCls } from "@/components/AuthLayout";
 
 export const Route = createFileRoute("/logowanie")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    info: typeof search.info === "string" ? search.info : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Logowanie — CzystaLista" },
